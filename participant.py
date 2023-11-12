@@ -1,7 +1,5 @@
 import re
-import requests
 from constants import ColumnNames
-from bs4 import BeautifulSoup
 
 
 class Status:
@@ -37,27 +35,12 @@ class Submission:
     def accept(self):
         self.verdict = Verdict.ACCEPTED
 
-    def verify_problem_name(self, other):
-        if self.problem != other:
+    def verify_problem_name(self, problem):
+        if self.problem != problem:
             self.status = Status.ERROR
             self.error = Error.MISMATCHED_PROBLEM
             return False
         return True
-
-    def scrape_verdict(self):
-        response = requests.get(self.url)
-        verdict_selector = '.verdict-accepted'
-        problem_selector = '#pageContent > div.datatable > div:nth-child(6) > table > tr:nth-child(2) > td:nth-child(3) > a'
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            verdict = soup.select(verdict_selector)
-            problem_a = soup.select(problem_selector)
-            problem = problem_a[0].text if problem_a and len(
-                problem_a) == 1 else ''
-            return verdict and len(verdict) == 1 and verdict[0].text == 'Accepted', problem
-        else:
-            print('Error', response.status_code, response.text)
-            return False, ''
 
 
 class Participant:
@@ -66,22 +49,26 @@ class Participant:
         self.email = email
         self.submissions = submissions
         self.points = points
-        self.year = self.extract_year()
+        self.batch_year = self.extract_year()
 
     def extract_year(self):
         year_pattern = re.compile(
-            r'bs(?:cs|eds|se|mt|ce|ee)(\d{2})\d{3}@itu\.edu\.pk')
+            r'bs(?:cs|ai|eds|se|mt|ce|ee)(\d{2})\d{3}@itu\.edu\.pk')
         if year_pattern.search(self.email):
             extracted_years = year_pattern.search(self.email).group(1)
-        return int(extracted_years)
+            return int(extracted_years)
+        return 20
 
     def update_points(self):
         for submission in self.submissions:
             if submission.verdict == Verdict.ACCEPTED:
-                self.points += submission.points * self.year/20
+                self.points += submission.points * self.batch_year/20
+
+    def verify_handle(self, handle):
+        return self.handle == handle
 
     def __str__(self):
-        return f'handle: {self.handle}\npoints: {self.points}\nemail: {self.email}\nyear: {self.year}\nsubmissions: {self.submissions}\n'
+        return f'handle: {self.handle}\npoints: {self.points}\nemail: {self.email}\nyear: {self.batch_year}\nsubmissions: {self.submissions}\n'
 
     # @param headers: list of strings
     # @param values: list of lists of strings

@@ -1,6 +1,7 @@
 from googleapiclient.errors import HttpError
 
 from participant import Participant
+from scraper import Scraper
 import sheets
 
 
@@ -18,15 +19,17 @@ def main():
         values = values[1:]
 
         participants = Participant.serialize_all(headers, values)
+        scraper = Scraper()
 
         for participant in participants:
             for submission in participant.submissions:
-                verdict, problem_name = submission.scrape_verdict()
-                if not submission.verify_problem_name(problem_name):
-                    print("invalid submission: ", submission)
+                accepted = scraper.scrape_verdict(participant, submission)
+                if not accepted:
                     continue
+
                 submission.accept()
-                print("submission accepted", participant.handle, problem_name)
+                print("submission accepted",
+                      participant.handle, submission.problem)
             participant.update_points()
 
         sheets.update_participants_points(
